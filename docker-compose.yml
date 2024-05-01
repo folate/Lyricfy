@@ -1,0 +1,16 @@
+﻿services:
+  cors:
+    image: cors-proxy
+    build:
+      context: .
+      dockerfile: Cors/Dockerfile
+    ports:
+      - "5217:80"
+  
+  ShareLyrics:
+    image: webapp
+    build:
+      context: .
+      dockerfile: ShareLyrics/Dockerfile
+    ports:
+      - "80:80"

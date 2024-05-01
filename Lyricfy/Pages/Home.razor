@@ -1,0 +1,176 @@
+﻿@page "/"
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Lyricfy - share lyrics</PageTitle>
+<h1>Paste spotify link</h1>
+<span>
+    <input @bind="InputValue" placeholder="Paste spotify link here ex. https://open.spotify.com/track/29ZZAShKhwRUuKULSNtxX6"/>
+    <button @onclick="async () => { await ButtonAction(); }">Get Lyrics</button>
+</span>
+<h4>or</h4>
+<h1>Paste genius lyrics link</h1>
+<span>
+    <input @bind="AlternativeInputValue" placeholder="Paste genius link here ex. https://genius.com/6lack-switch-lyrics"/>
+    <button @onclick="async () => { await AlternativeButtonAction(); }">Get Lyrics</button>
+</span>
+
+<div class="info-card">
+    <img id="album" src="@AlbumUrl" alt=""/>
+    <span>
+        <p>@Title</p>
+        <p>@Author</p>
+    </span>
+</div>
+
+
+<div class="lyrics">
+    @for (var index = 0; index < LyricsArray.Length; index++)
+    {
+        var line = LyricsArray[index];
+        var currentIndex = index;
+        if (line != string.Empty)
+        {
+            <p class="@GetLineClass(currentIndex)" @onclick="() => SelectLine(currentIndex)">@((MarkupString)line)</p>
+            ;
+        }
+        else
+        {
+            <br>
+            ;
+        }
+    }
+</div>
+
+    @if (SelectedLinesIndices.Count > 0)
+    {
+        <div class="selected-lyrics-panel">
+            <h2>Selected lines count: @LinesCount</h2>
+            <button @onclick="async () => { await GenerateImage(); }">Generate image</button>
+        </div>
+        ;
+    }
+    
+    @if(ShowModal)
+    {
+        <div id="modal" class="modal" style="background-color:hsl(@BackgroundColor);">
+            <div class="modal-render" style="background-color:hsl(@LighterBackgroundColor); color: @StringColor;">
+                <div class="header">
+                    <img alt="xd" src="@AlbumUrl">
+                    <span>
+                        <p>@Title</p>
+                        <p>@Author</p>
+                    </span>
+                </div>
+                @for (var i = 0; i < SelectedLinesIndices.Count; i++)
+                {
+                    <p>@((MarkupString)LyricsArray[SelectedLinesIndices[i]])</p>
+                    if (i + 1 < SelectedLinesIndices.Count)
+                    {
+                        if (string.IsNullOrEmpty(LyricsArray[SelectedLinesIndices[i]+1]))
+                        {
+                            <br>
+                            ;
+                        }
+                        else if (SelectedLinesIndices[i]+1 != SelectedLinesIndices[i+1])
+                        {
+                            <p>...</p>
+                            ;
+                        }
+                    }
+                }
+                <br>
+                <p style="font-weight: bold; font-size: 14px; opacity: 0.8; color: @StringColor;">Created in Lyricfy</p>
+            </div>
+            <span class="modal-buttons" data-html2canvas-ignore>
+                <button @onclick="GenerateImage"><svg clip-rule="evenodd" fill-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="fill: white;width: 20px;"><path d="m12 10.93 5.719-5.72c.146-.146.339-.219.531-.219.404 0 .75.324.75.749 0 .193-.073.385-.219.532l-5.72 5.719 5.719 5.719c.147.147.22.339.22.531 0 .427-.349.75-.75.75-.192 0-.385-.073-.531-.219l-5.719-5.719-5.719 5.719c-.146.146-.339.219-.531.219-.401 0-.75-.323-.75-.75 0-.192.073-.384.22-.531l5.719-5.719-5.72-5.719c-.146-.147-.219-.339-.219-.532 0-.425.346-.749.75-.749.192 0 .385.073.531.219z"></path></svg></button>
+                <button @onclick="async () => { await CopyImage(); }"><svg clip-rule="evenodd" fill-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="fill: white;width: 20px;"><path d="m6 18h-3c-.48 0-1-.379-1-1v-14c0-.481.38-1 1-1h14c.621 0 1 .522 1 1v3h3c.621 0 1 .522 1 1v14c0 .621-.522 1-1 1h-14c-.48 0-1-.379-1-1zm1.5-10.5v13h13v-13zm9-1.5v-2.5h-13v13h2.5v-9.5c0-.481.38-1 1-1z" fill-rule="nonzero"></path></svg></button>
+            </span>
+        </div>
+        ;
+    }
+    
+
+    @code {
+    private string InputValue { get; set; } = string.Empty;
+    private string AlternativeInputValue { get; set; } = string.Empty;
+    private string Lyrics { get; set; } = string.Empty;
+    private string Title { get; set; } = string.Empty;
+    private string Author { get; set; } = string.Empty;
+    private string AlbumUrl { get; set; } = string.Empty;
+    private string BackgroundColor { get; set; } = "#ce4847";
+    private string LighterBackgroundColor { get; set; } = "#ce4847";
+    private string StringColor { get; set; } = "#000000";
+    private bool ShowModal { get; set; } = false;
+    private string LinesCount => SelectedLinesIndices.Count.ToString();
+    private string[] LyricsArray { get; set; } = Array.Empty<string>();
+    private List<int> SelectedLinesIndices { get; set; } = [];
+
+    private async Task GenerateImage()
+    {
+        SelectedLinesIndices.Sort();
+        BackgroundColor = await JSRuntime.InvokeAsync<string>("getHexValue", "");
+        var xd = BackgroundColor.Split(" ");
+        LighterBackgroundColor = xd[0] + " " + Math.Floor(double.Parse(xd[1])-2) + " " + Math.Floor(double.Parse(xd[2])+2);
+        var brightness = await JSRuntime.InvokeAsync<string>("getBrightness", "");
+        if (double.Parse(brightness.Replace(".", ",")) < 60)
+        {
+            Console.WriteLine(double.Parse(brightness.Replace(".", ",")) + " white");
+            StringColor = "#ffffff";
+        }
+        else
+        {
+            Console.WriteLine(double.Parse(brightness.Replace(".", ",")) + " black");
+
+            StringColor = "#000000";
+        }
+        ShowModal = !ShowModal;
+    }
+
+    private async Task CopyImage()
+    {
+        await JSRuntime.InvokeVoidAsync("captureAndCopy", "modal");
+    }
+    private string GetLineClass(int index)
+    {
+        return SelectedLinesIndices.Contains(index) ? "selected" : "";
+    }
+    private void SelectLine(int index)
+    {
+        if (SelectedLinesIndices.Contains(index))
+        {
+            SelectedLinesIndices.Remove(index);
+        }
+        else
+        {
+            SelectedLinesIndices.Add(index);
+        }
+    }
+    private async Task ButtonAction()
+    {
+        Lyrics = "<br><br>Loading";
+        Title = "Loading";
+        Author = "Loading";
+        var metadata = await LyricsFetcher.GetLyrics(InputValue);
+        Lyrics = metadata.lyrics;
+        Title = metadata.title;
+        Author = metadata.author;
+        AlbumUrl = metadata.albumUrl;
+        LyricsArray = Array.Empty<string>();
+        SelectedLinesIndices = [];
+        LyricsArray = Lyrics.Split(["<br>"], StringSplitOptions.None);
+    }
+    private async Task AlternativeButtonAction()
+    {
+        Lyrics = "<br><br>Loading";
+        Title = "Loading";
+        Author = "Loading";
+        var metadata = await LyricsFetcher.GetGenius(AlternativeInputValue);
+        Lyrics = metadata.lyrics;
+        Title = metadata.title;
+        Author = metadata.author;
+        AlbumUrl = metadata.albumUrl;
+        LyricsArray = Array.Empty<string>();
+        SelectedLinesIndices = [];
+        LyricsArray = Lyrics.Split(["<br>"], StringSplitOptions.None);
+    }
+}
